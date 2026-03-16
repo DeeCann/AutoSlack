@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.autoslack.data.repository.AuthRepository
 import com.autoslack.data.repository.SlackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,10 +30,25 @@ class LoginViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(LoginState())
     val state: StateFlow<LoginState> = _state.asStateFlow()
+    private var pollingJob: Job? = null
 
     fun isLoggedIn(): Boolean = authRepository.isLoggedIn()
 
+    suspend fun validateExistingToken(): Boolean {
+        return try {
+            val valid = slackRepository.verifyToken()
+            if (!valid) {
+                authRepository.logout()
+            }
+            valid
+        } catch (_: Exception) {
+            authRepository.logout()
+            false
+        }
+    }
+
     fun requestQrCode(onSuccess: () -> Unit) {
+        pollingJob?.cancel()
         viewModelScope.launch {
             _state.value = LoginState(isLoading = true, status = "loading")
             try {
@@ -46,17 +62,26 @@ class LoginViewModel @Inject constructor(
                 )
                 startPolling(qrResponse.token, onSuccess)
             } catch (e: Exception) {
+                val errorMsg = when (e) {
+                    is java.net.UnknownHostException,
+                    is java.net.ConnectException ->
+                        "Serwer OAuth jest niedostępny. Sprawdź połączenie z internetem."
+                    is java.net.SocketTimeoutException ->
+                        "Przekroczono czas połączenia z serwerem. Spróbuj ponownie."
+                    else -> e.message ?: "Nie udało się wygenerować kodu QR"
+                }
                 _state.value = LoginState(
                     isLoading = false,
                     status = "error",
-                    errorMessage = e.message ?: "Nie udało się wygenerować kodu QR"
+                    errorMessage = errorMsg
                 )
             }
         }
     }
 
     private fun startPolling(token: String, onSuccess: () -> Unit) {
-        viewModelScope.launch {
+        pollingJob?.cancel()
+        pollingJob = viewModelScope.launch {
             val maxAttempts = 100
             var attempt = 0
 
@@ -72,9 +97,17 @@ class LoginViewModel @Inject constructor(
                             val accessToken = statusResponse.accessToken
                             if (accessToken != null) {
                                 authRepository.saveToken(accessToken)
-                                slackRepository.verifyToken()
-                                _state.value = _state.value.copy(status = "success")
-                                onSuccess()
+                                val verified = slackRepository.verifyToken()
+                                if (verified) {
+                                    _state.value = _state.value.copy(status = "success")
+                                    onSuccess()
+                                } else {
+                                    authRepository.logout()
+                                    _state.value = _state.value.copy(
+                                        status = "error",
+                                        errorMessage = "Nie udało się zweryfikować tokenu. Spróbuj ponownie."
+                                    )
+                                }
                             } else {
                                 _state.value = _state.value.copy(
                                     status = "error",

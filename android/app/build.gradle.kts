@@ -5,6 +5,17 @@ plugins {
     kotlin("kapt")
 }
 
+val localProperties = java.util.Properties().apply {
+    val localPropsFile = rootProject.file("local.properties")
+    if (localPropsFile.exists()) {
+        load(localPropsFile.inputStream())
+    }
+}
+val oauthBaseUrl: String = localProperties.getProperty(
+    "oauth.base.url",
+    "https://6facee62-497d-4acd-9b2b-2a25b31ca27f-00-1ilhmg3ubj0oo.kirk.replit.dev"
+)
+
 android {
     namespace = "com.autoslack"
     compileSdk = 34
@@ -15,16 +26,14 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
-
-        buildConfigField(
-            "String",
-            "OAUTH_BASE_URL",
-            "\"https://6facee62-497d-4acd-9b2b-2a25b31ca27f-00-1ilhmg3ubj0oo.kirk.replit.dev\""
-        )
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "OAUTH_BASE_URL", "\"$oauthBaseUrl\"")
+        }
         release {
+            buildConfigField("String", "OAUTH_BASE_URL", "\"$oauthBaseUrl\"")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

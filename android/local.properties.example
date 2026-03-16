@@ -1,0 +1,4 @@
+## After deploying the API server to Replit Production, set the stable production URL here:
+# oauth.base.url=https://your-app.replit.app
+
+## Default (if not set): uses the Replit dev domain

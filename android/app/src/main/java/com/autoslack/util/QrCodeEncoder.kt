@@ -27,7 +27,7 @@ object QrCodeEncoder {
             for (y in 0 until size) {
                 bitmap.setPixel(
                     x, y,
-                    if (bitMatrix.get(x, y)) Color.WHITE else Color.TRANSPARENT
+                    if (bitMatrix.get(x, y)) Color.BLACK else Color.WHITE
                 )
             }
         }
