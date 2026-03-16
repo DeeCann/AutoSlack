@@ -22,9 +22,19 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 
 ```text
 artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   ├── api-server/         # Express API server (Slack backend + Socket.IO)
-│   └── messenger-automotive/  # React Slack client (Android Automotive optimized)
+├── android/                # Native Android Automotive OS app (Kotlin + Jetpack Compose)
+│   ├── app/                # Main app module
+│   │   ├── src/main/java/com/autoslack/  # Kotlin source
+│   │   │   ├── di/         # Hilt DI modules
+│   │   │   ├── data/       # API services, models, repositories
+│   │   │   ├── ui/         # Compose screens (login, dashboard, sidebar, chat)
+│   │   │   └── util/       # TokenStorage, QrCodeEncoder
+│   │   └── src/main/res/   # Android resources
+│   ├── build.gradle.kts    # Root Gradle build
+│   └── settings.gradle.kts # Gradle settings
+├── artifacts/              # Web deployable applications
+│   ├── api-server/         # Express API server (OAuth callback + Slack service)
+│   └── messenger-automotive/  # React Slack client (web fallback)
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
@@ -112,3 +122,29 @@ Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHea
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+
+### `android/` (Native AAOS App)
+
+Native Android Automotive OS application built with Kotlin + Jetpack Compose.
+
+**Stack:** Kotlin 1.9.22, Jetpack Compose BOM 2024.02, Hilt 2.50, Retrofit 2.9, OkHttp 4.12, Coil 2.5, ZXing 3.5
+
+**Architecture:** MVVM + Repository pattern, StateFlow for reactive UI, single Activity with Compose Navigation.
+
+**How to run:**
+1. Open `android/` folder in Android Studio
+2. Sync Gradle
+3. Run on AAOS emulator (API 29+, landscape)
+
+**OAuth flow:** The app uses the deployed Replit API server (`artifacts/api-server`) ONLY for the Slack OAuth code-to-token exchange (requires `client_secret`). After login, ALL Slack API calls go directly from Android to `https://slack.com/api/`. The OAuth base URL is hardcoded in `BuildConfig.OAUTH_BASE_URL`.
+
+**Key packages:**
+- `com.autoslack.di` — Hilt DI modules (NetworkModule, RepositoryModule)
+- `com.autoslack.data.api` — Retrofit interfaces (SlackApiService, AuthApiService)
+- `com.autoslack.data.model` — Data classes for Slack API responses
+- `com.autoslack.data.repository` — AuthRepository, SlackRepository
+- `com.autoslack.ui.login` — QR code login screen
+- `com.autoslack.ui.dashboard` — Main dashboard (sidebar + chat)
+- `com.autoslack.ui.sidebar` — Channel/DM list with search
+- `com.autoslack.ui.chat` — Message list with send input
+- `com.autoslack.util` — TokenStorage (EncryptedSharedPreferences), QrCodeEncoder (ZXing)

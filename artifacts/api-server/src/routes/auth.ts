@@ -8,6 +8,7 @@ interface QrSession {
   token: string;
   status: "pending" | "success" | "expired" | "error";
   errorMessage?: string;
+  userAccessToken?: string;
   createdAt: number;
 }
 
@@ -101,10 +102,16 @@ authRouter.get("/auth/qr-status/:token", (req, res) => {
     qrSessions.set(token, session);
   }
 
-  res.json({
+  const response: Record<string, unknown> = {
     status: session.status,
     errorMessage: session.errorMessage,
-  });
+  };
+
+  if (session.status === "success" && session.userAccessToken) {
+    response.accessToken = session.userAccessToken;
+  }
+
+  res.json(response);
 });
 
 authRouter.get("/auth/slack/callback", async (req, res) => {
@@ -170,6 +177,7 @@ authRouter.get("/auth/slack/callback", async (req, res) => {
     await slackService.loginWithToken(accessToken);
 
     session.status = "success";
+    session.userAccessToken = accessToken;
     qrSessions.set(state, session);
 
     res.send(callbackPage(true, "Połączono ze Slackiem! Możesz zamknąć tę stronę — ekran auta załaduje się automatycznie."));
