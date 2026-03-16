@@ -1,0 +1,17 @@
+packages:
+  "socket.io-client": "Real-time bidirectional event-based communication for chat"
+  "date-fns": "For formatting message timestamps elegantly"
+  "lucide-react": "For beautiful consistent iconography"
+  "react-hook-form": "For robust form state management in login"
+  "@hookform/resolvers": "For zod validation integration"
+  "zod": "For schema validation"
+
+images:
+  - path: "artifacts/messenger-automotive/public/images/auth-bg.png"
+    description: "Deep, dark premium automotive abstract background. Sleek, minimal geometric waves in dark navy and charcoal, with subtle electric blue neon accents. Smooth gradients, low contrast, perfect for a luxury car infotainment screen background."
+    aspect_ratio: "16:9"
+
+notes:
+  - Assumes @workspace/api-client-react exports the generated hooks correctly.
+  - Requires socket.io server running on the backend root path '/' handling 'newMessage' and 'threadsUpdated' events.
+  - Automotive UI constraints applied: touch targets minimum 64px, large typography, high contrast dark theme, horizontal-first layout.

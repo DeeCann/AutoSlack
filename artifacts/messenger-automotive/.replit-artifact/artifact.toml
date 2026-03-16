@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Messenger Automotive"
+version = "1.0.0"
+id = "artifacts/messenger-automotive"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+localPort = 18390
+name = "web"
+paths = ["/"]
+
+[services.development]
+run = "pnpm --filter @workspace/messenger-automotive run dev"
+
+[services.env]
+PORT = "18390"
+BASE_PATH = "/"
+
+[services.production]
+build = ["pnpm", "--filter", "@workspace/messenger-automotive", "run", "build"]
+publicDir = "artifacts/messenger-automotive/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"

@@ -1,0 +1,374 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.2.0
+  description: Slack Automotive API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: slack
+    description: Slack messaging operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/status:
+    get:
+      operationId: getAuthStatus
+      tags: [auth]
+      summary: Get authentication status
+      responses:
+        "200":
+          description: Auth status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthStatus"
+
+  /auth/qr-code:
+    get:
+      operationId: getQrCode
+      tags: [auth]
+      summary: Generate QR code for Slack OAuth login
+      responses:
+        "200":
+          description: QR code data with Slack OAuth URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrCodeResponse"
+        "503":
+          description: Slack not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/qr-status/{token}:
+    get:
+      operationId: getQrStatus
+      tags: [auth]
+      summary: Poll QR session status
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrStatusResponse"
+        "404":
+          description: Session expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrStatusResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /slack/conversations:
+    get:
+      operationId: getConversations
+      tags: [slack]
+      summary: Get all Slack conversations (channels and DMs)
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Conversation"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /slack/conversations/{channelId}/messages:
+    get:
+      operationId: getMessages
+      tags: [slack]
+      summary: Get messages for a conversation
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 30
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Pagination cursor
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Message"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: sendMessage
+      tags: [slack]
+      summary: Send a message to a conversation
+      parameters:
+        - name: channelId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "200":
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    AuthStatus:
+      type: object
+      properties:
+        isLoggedIn:
+          type: boolean
+        userId:
+          type: string
+          nullable: true
+        displayName:
+          type: string
+          nullable: true
+        profilePicture:
+          type: string
+          nullable: true
+        workspaceName:
+          type: string
+          nullable: true
+        configError:
+          type: string
+          nullable: true
+      required:
+        - isLoggedIn
+
+    QrCodeResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        loginUrl:
+          type: string
+        expiresIn:
+          type: integer
+      required:
+        - token
+        - loginUrl
+        - expiresIn
+
+    QrStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, success, expired, error]
+        errorMessage:
+          type: string
+          nullable: true
+      required:
+        - status
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        snippet:
+          type: string
+          nullable: true
+        unreadCount:
+          type: integer
+        participants:
+          type: array
+          items:
+            $ref: "#/components/schemas/Participant"
+        imageUrl:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          nullable: true
+        isGroup:
+          type: boolean
+        type:
+          type: string
+          enum: [channel, dm, group]
+      required:
+        - id
+        - name
+        - unreadCount
+        - participants
+        - isGroup
+        - type
+
+    Participant:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        body:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+        senderId:
+          type: string
+        senderName:
+          type: string
+        isOwn:
+          type: boolean
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+      required:
+        - id
+        - timestamp
+        - senderId
+        - senderName
+        - isOwn
+        - attachments
+
+    Attachment:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        url:
+          type: string
+          nullable: true
+        name:
+          type: string
+          nullable: true
+      required:
+        - id
+        - type
+
+    SendMessageRequest:
+      type: object
+      properties:
+        body:
+          type: string
+      required:
+        - body
